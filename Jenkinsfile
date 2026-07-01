@@ -4,7 +4,7 @@ pipeline {
     stages {
         stage('Hello'){
             steps {
-                echo 'stage 1: Hello from release Branch!'
+                echo 'stage 1: Hello from test Branch!'
                 
             }
         }
