@@ -1,4 +1,4 @@
-@Library('practice_library') _
+@Library('practice-library') _
 pipeline {
     agent any
     
