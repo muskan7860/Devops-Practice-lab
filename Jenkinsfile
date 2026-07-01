@@ -1,3 +1,4 @@
+@Library('practice_library') _
 pipeline {
     agent any
     
@@ -6,6 +7,11 @@ pipeline {
             steps {
                 echo 'stage 1: Hello from Jenkins!'
                 
+            }
+        }
+        stage('Shared Library Test'){
+            steps {
+               sayHello('Muskan')
             }
         }
         stage('Who Am I') {
