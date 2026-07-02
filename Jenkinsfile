@@ -69,7 +69,7 @@ pipeline {
 
         always {
             echo "Cleanup complete. Workspace will be cleared."
-            cleanWs()
+            
         }
     }
 }
