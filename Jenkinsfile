@@ -1,43 +1,75 @@
-@Library('practice-library') _
 pipeline {
     agent any
-    
+
+    environment {
+        APP_NAME  = 'my-practice-app'
+        IMAGE_TAG = "${env.BUILD_NUMBER}"
+    }
+
     stages {
-        stage('Hello'){
+
+        stage('Checkout') {
             steps {
-                echo 'stage 1: Hello from Jenkins!'
-                
+                checkout scm
+                echo "Code checked out successfully"
             }
         }
-        stage('Shared Library Test'){
+
+        stage('Build') {
             steps {
-               sayHello('Muskan')
+                echo "Building application: ${APP_NAME}"
+                echo "Simulating: mvn clean package -DskipTests"
+                sh 'echo BUILD SUCCESS'
             }
         }
-        stage('Who Am I') {
+
+        stage('Code Analysis') {
             steps {
-                  sh 'whoami'
-                  sh 'pwd'
-                  sh 'ls -la'
+                echo "Running SonarQube code analysis"
+                echo "Simulating: mvn sonar:sonar"
+                sh 'echo SONARQUBE SCAN COMPLETE - Quality Gate PASSED'
             }
-          
         }
-        stage('Environment Check') {
+
+        stage('Docker Build') {
             steps {
-                echo "Build Number: ${env.BUILD_NUMBER}"
-                echo "Job Name: ${env.JOB_NAME}"
-                echo "Workspace: ${env.WORKSPACE}"
-                echo "Git Branch: ${env.GIT_BRANCH}"
+                echo "Building Docker Image: ${APP_NAME}:${IMAGE_TAG}"
+                echo "Simulating: docker build -t ${APP_NAME}:${IMAGE_TAG} ."
+                sh 'echo DOCKER IMAGE BUILT SUCCESSFULLY'
+            }
+        }
+
+        stage('Docker Push') {
+            steps {
+                echo "Pushing Docker Image to registry"
+                echo "Simulating: docker push ${APP_NAME}:${IMAGE_TAG}"
+                sh 'echo DOCKER IMAGE PUSHED SUCCESSFULLY'
+            }
+        }
+
+        stage('Deploy') {
+            when {
+                branch 'main'
+            }
+            steps {
+                echo "Deploying ${APP_NAME}:${IMAGE_TAG} to server..."
+                sh 'echo Deployment complete'
             }
         }
     }
+
     post {
         success {
-            echo 'All stages passed! Great job'
+            echo "Pipeline Passed! App: ${APP_NAME}, Build: ${IMAGE_TAG}"
         }
+
         failure {
-            echo 'something went wrong. check the stage that turned red.'
+            echo "Pipeline Failed! Check the red stage above."
         }
+
+        always {
+            echo "Cleanup complete. Workspace will be cleared."
+            cleanWs()
         }
     }
-    
+}
