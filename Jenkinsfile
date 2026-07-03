@@ -1,75 +1,75 @@
 pipeline {
-    agent any
-
-    environment {
-        APP_NAME  = 'my-practice-app'
-        IMAGE_TAG = "${env.BUILD_NUMBER}"
-    }
+    agent { label 'k8s-agent' }
 
     stages {
 
-        stage('Checkout') {
+        stage('Prove We Are on k8s-agent') {
             steps {
-                checkout scm
-                echo "Code checked out successfully"
+                echo "============================================"
+                echo "Agent Name: ${env.NODE_NAME}"
+                echo "Workspace:  ${env.WORKSPACE}"
+                echo "Build No:   ${env.BUILD_NUMBER}"
+                echo "============================================"
+                sh 'whoami'
+                sh 'hostname'
+                sh 'echo My IP is: $(hostname -i)'
             }
         }
 
-        stage('Build') {
+        stage('Check Kubernetes Identity') {
             steps {
-                echo "Building application: ${APP_NAME}"
-                echo "Simulating: mvn clean package -DskipTests"
-                sh 'echo BUILD SUCCESS'
+                echo "Checking if we are inside a Kubernetes pod..."
+                sh 'cat /etc/hostname'
+                sh 'echo Namespace: $(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace)'
+                sh 'ls /var/run/secrets/kubernetes.io/serviceaccount/'
             }
         }
 
-        stage('Code Analysis') {
+        stage('Check Available Tools') {
             steps {
-                echo "Running SonarQube code analysis"
-                echo "Simulating: mvn sonar:sonar"
-                sh 'echo SONARQUBE SCAN COMPLETE - Quality Gate PASSED'
+                echo "What tools does this agent have?"
+                sh 'java -version'
+                sh 'git --version'
+                sh 'curl --version | head -1'
+                sh 'which wget || echo wget not installed'
+                sh 'which docker || echo docker not installed'
+                sh 'which kubectl || echo kubectl not installed'
             }
         }
 
-        stage('Docker Build') {
+        stage('Create File in Workspace') {
             steps {
-                echo "Building Docker Image: ${APP_NAME}:${IMAGE_TAG}"
-                echo "Simulating: docker build -t ${APP_NAME}:${IMAGE_TAG} ."
-                sh 'echo DOCKER IMAGE BUILT SUCCESSFULLY'
+                echo "Creating a file in the agent workspace..."
+                sh '''
+                    echo "This file was created by Jenkins build ${BUILD_NUMBER}" > myfile.txt
+                    echo "Agent: ${NODE_NAME}" >> myfile.txt
+                    echo "Date: $(date)" >> myfile.txt
+                    cat myfile.txt
+                '''
+                echo "File created successfully inside the k8s pod workspace!"
             }
         }
 
-        stage('Docker Push') {
+        stage('Show Workspace Contents') {
             steps {
-                echo "Pushing Docker Image to registry"
-                echo "Simulating: docker push ${APP_NAME}:${IMAGE_TAG}"
-                sh 'echo DOCKER IMAGE PUSHED SUCCESSFULLY'
+                sh 'ls -la'
+                sh 'pwd'
+                sh 'df -h | head -5'
             }
         }
 
-        stage('Deploy') {
-            when {
-                branch 'main'
-            }
-            steps {
-                echo "Deploying ${APP_NAME}:${IMAGE_TAG} to server..."
-                sh 'echo Deployment complete'
-            }
-        }
     }
 
     post {
         success {
-            echo "Pipeline Passed! App: ${APP_NAME}, Build: ${IMAGE_TAG}"
+            echo "Pipeline ran successfully on agent: ${env.NODE_NAME}"
         }
-
         failure {
-            echo "Pipeline Failed! Check the red stage above."
+            echo "Pipeline failed on agent: ${env.NODE_NAME}"
         }
-
         always {
-            echo "Cleanup complete. Workspace will be cleared."
-            
+            echo "Cleaning up workspace..."
+            cleanWs()
         }
     }
 }
