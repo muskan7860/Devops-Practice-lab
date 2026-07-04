@@ -1,40 +1,80 @@
 pipeline {
-    agent none
+    agent { label 'k8s-agent' }
 
     stages {
 
-        stage('Stage on Master') {
-            agent { label 'built-in' }
+        stage('Checkout') {
             steps {
-                echo "This stage runs on: ${env.NODE_NAME}"
-                sh 'hostname'
-                echo "Master workspace: ${env.WORKSPACE}"
+                checkout scm
+                echo "Running on agent: ${env.NODE_NAME}"
             }
         }
 
-        stage('Stage on k8s-agent') {
-            agent { label 'k8s-agent' }
+        stage('Secret Text Demo') {
             steps {
-                echo "This stage runs on: ${env.NODE_NAME}"
-                sh 'hostname'
-                echo "Agent workspace: ${env.WORKSPACE}"
-                sh 'echo I am running inside a Kubernetes Pod!'
+                withCredentials([string(
+                    credentialsId: 'my-api-token',
+                    variable: 'API_TOKEN'
+                )]) {
+                    echo "✅ Secret Text credential loaded successfully"
+                    sh 'echo The token value is: $API_TOKEN'
+                    sh 'echo Length of token: ${#API_TOKEN}'
+                }
             }
         }
 
-        stage('Back to k8s-agent') {
-            agent { label 'k8s-agent' }
+        stage('Username Password Demo') {
             steps {
-                echo "Still on: ${env.NODE_NAME}"
-                sh 'echo Same agent, different stage'
+                withCredentials([usernamePassword(
+                    credentialsId: 'dockerhub-creds',
+                    usernameVariable: 'DOCKER_USER',
+                    passwordVariable: 'DOCKER_PASS'
+                )]) {
+                    echo "✅ Username/Password credential loaded"
+                    sh 'echo Username is: $DOCKER_USER'
+                    sh 'echo Password is: $DOCKER_PASS'
+                    sh 'echo Both above lines will show **** for password'
+                }
+            }
+        }
+
+        stage('Credentials Outside Block') {
+            steps {
+                echo "Trying to access credential outside withCredentials block..."
+                sh 'echo API_TOKEN value outside block: ${API_TOKEN:-NOT_SET}'
+                sh 'echo This proves credentials only exist INSIDE the block'
+            }
+        }
+
+        stage('Multiple Credentials Together') {
+            steps {
+                withCredentials([
+                    string(credentialsId: 'my-api-token', variable: 'API_TOKEN'),
+                    usernamePassword(
+                        credentialsId: 'dockerhub-creds',
+                        usernameVariable: 'DOCKER_USER',
+                        passwordVariable: 'DOCKER_PASS'
+                    )
+                ]) {
+                    echo "✅ Both credentials loaded in same block"
+                    sh 'echo Using API token and Docker creds simultaneously'
+                    sh 'echo Docker user: $DOCKER_USER'
+                    sh 'echo API Token masked: $API_TOKEN'
+                }
             }
         }
 
     }
 
     post {
+        success {
+            echo "✅ All credential stages passed! Secrets were masked correctly."
+        }
+        failure {
+            echo "❌ Check which stage failed - likely credential ID mismatch"
+        }
         always {
-            echo "Pipeline finished. Stages ran on different agents!"
+            deleteDir()
         }
     }
 }
